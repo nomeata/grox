@@ -2,23 +2,26 @@
 
 # ./grox.rb <dir>
 #   +left, +right, flip: relative movement
+#   -left, -right, -inverted: toggle movement
 #   left, right, normal, inverted: absolute movement
 
 # devices to manipulate
-$screen = 'eDP1'
-$touchscreen = 'Atmel Atmel maXTouch Digitizer'
-$touchpad = 'ETPS/2 Elantech Touchpad'
+$screen = 'eDP-1'
+$touchscreen1 = 'Wacom Pen and multitouch sensor Finger touch'
+$touchscreen2 = 'Wacom Pen and multitouch sensor Pen stylus'
+$touchscreen3 = 'Wacom Pen and multitouch sensor Pen eraser'
+$touchpad = 'SynPS/2 Synaptics TouchPad'
 $keyboard = 'AT Translated Set 2 keyboard'
 
 # disable keypad and touchpad on all but normal orientation
-$controlKeys = true
+$controlKeys = false
 
 # runs cmd and greps output to find orientation
 $orientationCmd = 'xrandr'
-$orientationRE = /\s*#{$screen}\s+\w+\s+[x+\d]+\s+(|left|right|inverted)\s*\(/
+$orientationRE = /\s*#{$screen}\s+\w+\s+\w+\s+[x+\d]+\s+(|left|right|inverted)\s*\(/
 
 # default direction
-$defaultDirection = 'right'
+$defaultDirection = '-right'
 
 
 # CODE
@@ -37,7 +40,15 @@ end
 def orientateCmd(orientation, transform)
     rotateScreen = "xrandr --output #{$screen}" +
                          " --rotate #{orientation}";
-    rotateTouchscreen = "xinput --set-prop '#{$touchscreen}'" +
+    rotateTouchscreen1 = "xinput --set-prop '#{$touchscreen1}'" +
+                              " --type=float" +
+                              " 'Coordinate Transformation Matrix'" +
+                              " #{transform}"
+    rotateTouchscreen2 = "xinput --set-prop '#{$touchscreen2}'" +
+                              " --type=float" +
+                              " 'Coordinate Transformation Matrix'" +
+                              " #{transform}"
+    rotateTouchscreen3 = "xinput --set-prop '#{$touchscreen3}'" +
                               " --type=float" +
                               " 'Coordinate Transformation Matrix'" +
                               " #{transform}"
@@ -50,7 +61,9 @@ def orientateCmd(orientation, transform)
 
     return controlKeys +
            rotateScreen + ';' +
-           rotateTouchscreen + ';'
+           rotateTouchscreen1 + ';' +
+           rotateTouchscreen2 + ';' +
+           rotateTouchscreen3 + ';'
 end
 
 
@@ -87,19 +100,27 @@ def getNewOrientation(direction)
     if clockwise.include?(direction)
         return direction
     else
-        curdir = clockwise.find_index(getOrientation())
+	cur = getOrientation()
 
-        shift = case direction
-                when '+left' then -1
-                when '+right' then 1
-                when 'flip' then 2
-                else
-                    raise "Unrecognised rotate direction #{direction}"
-                end
+        curdir = clockwise.find_index(cur)
+
+	case direction
+	when "-left" then return cur == "left" ? "normal" : "left"
+	when "-right" then return cur == "right" ? "normal" : "right"
+	when "-inverted" then return cur == "inverted" ? "normal" : "inverted"
+	else
+          shift = case direction
+                  when '+left' then -1
+                  when '+right' then 1
+                  when 'flip' then 2
+                  else
+                      raise "Unrecognised rotate direction #{direction}"
+                  end
        
-        newdir = (curdir + shift) % 4
+          newdir = (curdir + shift) % 4
 
-        return clockwise[newdir]
+          return clockwise[newdir]
+	end
     end
 end
 
